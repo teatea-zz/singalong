@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+<style>
+  body {
+    background: #111;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+    gap: 40px;
+  }
+  .bar {
+    width: 800px;
+    height: 64px;
+    background: rgba(0,0,0,0.88);
+    border: 1px solid rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Pretendard', sans-serif;
+    font-size: 20px;
+    color: #fff;
+    letter-spacing: 0.08em;
+    border-radius: 4px;
+  }
+  .label {
+    color: rgba(255,255,255,0.4);
+    font-family: 'Pretendard', sans-serif;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="label">이전 — 음표 1개</div>
+<div class="bar" id="barOld"></div>
+
+<script>
+  const face = '( ˘0˘ )';
+
+  const framesOld = [
+    `      \\ \\ \\ ${face} / / /      `,
+    `     \\ \\ ♪  ${face}  ♪ / /     `,
+    `    \\ \\ ♪ \\ ${face} / ♪ / /    `,
+    `   \\ \\ ♪ \\\\ ${face} // ♪ / /   `,
+    `  \\\\ ♪ \\\\   ${face}   // ♪ //  `,
+    ` \\\\\\ ♪      ${face}      ♪ ///  `,
+    `\\\\\\\\ ♪       ${face}       ♪ ////`,
+    ` \\\\\\ ♪      ${face}      ♪ ///  `,
+    `  \\\\ ♪ \\\\   ${face}   // ♪ //  `,
+    `   \\ \\ ♪ \\\\ ${face} // ♪ / /   `,
+    `    \\ \\ ♪ \\ ${face} / ♪ / /    `,
+    `     \\ \\ ♪  ${face}  ♪ / /     `,
+    `      \\ \\ \\ ${face} / / /      `,
+  ];
+
+  let i = 0;
+  setInterval(() => {
+    document.getElementById('barOld').textContent = framesOld[i % framesOld.length];
+    i++;
+  }, 200);
+</script>
+</body>
+</html>

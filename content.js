@@ -5,9 +5,41 @@
 // ─── 상태 ──────────────────────────────────────────────────────────────────
 let isEnabled = false;
 let lyrics = [];       // [{ time: number (초), text: string }]
-let currentIndex = -1;
+let currentIndex = null;
 let syncTimer = null;
 let syncOffset = 0;    // 싱크 오프셋 (초 단위, ±0.5씩 조절)
+
+// ─── ASCII 애니메이션 ────────────────────────────────────────────────────────
+const _fA = '( ˘0˘ )';
+const ANIM_FRAMES_A = [
+  `      \\ \\ \\ ${_fA} / / /      `,
+  `     \\ \\ ♪  ${_fA}  ♪ / /     `,
+  `    \\ \\ ♪ \\ ${_fA} / ♪ / /    `,
+  `   \\ \\ ♪ \\\\ ${_fA} // ♪ / /   `,
+  `  \\\\ ♪ \\\\   ${_fA}   // ♪ //  `,
+  ` \\\\\\ ♪      ${_fA}      ♪ ///  `,
+  `\\\\\\\\ ♪       ${_fA}       ♪ ////`,
+  ` \\\\\\ ♪      ${_fA}      ♪ ///  `,
+  `  \\\\ ♪ \\\\   ${_fA}   // ♪ //  `,
+  `   \\ \\ ♪ \\\\ ${_fA} // ♪ / /   `,
+  `    \\ \\ ♪ \\ ${_fA} / ♪ / /    `,
+  `     \\ \\ ♪  ${_fA}  ♪ / /     `,
+  `      \\ \\ \\ ${_fA} / / /      `,
+];
+const _fB = '( ˘ᵕ˘)';
+const ANIM_FRAMES_B = [
+  `♪ ～～  ${_fB}  ～ ♪`,
+  `♪ ～   ${_fB}  ～～ ♪`,
+  `♪ ～～～ ${_fB} ～ ♪`,
+  `♪ ～   ${_fB}  ～～～ ♪`,
+  `♪ ～～  ${_fB}  ～ ♪`,
+  `♪ ～   ${_fB}  ～～ ♪`,
+  `♪ ～～～ ${_fB} ～ ♪`,
+  `♪ ～   ${_fB}  ～～～ ♪`,
+];
+let animTimer = null;
+let animType = null;
+let animFrameIdx = 0;
 
 // ─── 플랫폼 감지 ────────────────────────────────────────────────────────────
 function getPlatform() {
@@ -18,8 +50,27 @@ function getPlatform() {
 
 const platform = getPlatform();
 
+// ─── 폰트 CDN 인젝션 ────────────────────────────────────────────────────────
+function injectFonts() {
+  if (document.getElementById('singalong-fonts')) return;
+  const links = [
+    'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css',
+    'https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap',
+  ];
+  links.forEach(href => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  });
+  const marker = document.createElement('meta');
+  marker.id = 'singalong-fonts';
+  document.head.appendChild(marker);
+}
+
 // ─── 가사 바 DOM ────────────────────────────────────────────────────────────
 function createBar() {
+  injectFonts();
   const bar = document.createElement('div');
   bar.id = 'singalong-bar';
   bar.style.cssText = `
@@ -28,9 +79,9 @@ function createBar() {
     left: 0;
     width: 100%;
     height: 64px;
-    background: rgba(0, 0, 0, 0.88);
+    background: rgba(26, 26, 26, 0.95);
     color: #fff;
-    font-family: sans-serif;
+    font-family: 'Pretendard Variable', Pretendard, sans-serif;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -47,22 +98,22 @@ function createBar() {
   const info = document.createElement('div');
   info.id = 'singalong-info';
   info.style.cssText = `
-    flex: 0 0 auto;
+    flex: 0 0 auto; 
     max-width: 18%;
     display: flex;
     flex-direction: column;
     justify-content: center;
     overflow: hidden;
-    line-height: 1.3;
+    gap: 2px;
   `;
-  const infoArtist = document.createElement('div');
-  infoArtist.id = 'singalong-artist';
-  infoArtist.style.cssText = 'font-size: 11px; font-weight: 400; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
   const infoTitle = document.createElement('div');
   infoTitle.id = 'singalong-title';
-  infoTitle.style.cssText = 'font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-  info.appendChild(infoArtist);
+  infoTitle.style.cssText = 'font-size: 14px; font-weight: 500; color: #ddff57; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+  const infoArtist = document.createElement('div');
+  infoArtist.id = 'singalong-artist';
+  infoArtist.style.cssText = 'font-size: 12px; font-weight: 400; color: #e0e0e0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
   info.appendChild(infoTitle);
+  info.appendChild(infoArtist);
 
   // 중앙: 현재 가사
   const lyricEl = document.createElement('div');
@@ -71,8 +122,8 @@ function createBar() {
     flex: 1 1 auto;
     text-align: center;
     font-size: 22px;
-    font-weight: 700;
-    color: #fff;
+    font-weight: 600;
+    color: #f1f1f1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -85,64 +136,77 @@ function createBar() {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 12px;
     pointer-events: auto;
   `;
 
-  const btnStyle = `
+  const btnBase = `
     background: none;
     border: none;
-    color: rgba(255,255,255,0.6);
     cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.15s, background 0.15s;
-    font-size: 13px;
-    line-height: 1;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    pointer-events: auto;
   `;
 
-  // 가사 새로고침 버튼
+  // Btn Refresh — 항상 노란 아이콘, hover 없음
   const btnRefresh = document.createElement('button');
   btnRefresh.id = 'singalong-btn-refresh';
   btnRefresh.title = '가사 새로고침';
-  btnRefresh.style.cssText = btnStyle;
-  btnRefresh.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+  btnRefresh.style.cssText = btnBase;
+  btnRefresh.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20.4004 12C20.4004 9.77218 19.5148 7.63585 17.9395 6.06055C16.3644 4.48547 14.2284 3.59987 12.001 3.59961C9.64372 3.60881 7.3801 4.52678 5.68359 6.16309L5.68457 6.16406L4.44727 7.40039H8C8.33137 7.40039 8.59961 7.66863 8.59961 8C8.59961 8.33137 8.33137 8.59961 8 8.59961H3C2.66863 8.59961 2.40039 8.33137 2.40039 8V3C2.40039 2.66863 2.66863 2.40039 3 2.40039C3.33137 2.40039 3.59961 2.66863 3.59961 3V6.55176L4.84277 5.30859L5.20996 4.96973C7.08367 3.32554 9.49407 2.40981 11.998 2.40039H12C14.5461 2.40039 16.9877 3.41157 18.7881 5.21191C20.5884 7.01226 21.5996 9.45392 21.5996 12C21.5996 12.3314 21.3314 12.5996 21 12.5996C20.6686 12.5996 20.4004 12.3314 20.4004 12ZM21.5996 21C21.5996 21.3314 21.3314 21.5996 21 21.5996C20.6686 21.5996 20.4004 21.3314 20.4004 21V17.4473L19.1572 18.6914C17.2369 20.5478 14.6728 21.5896 12.002 21.5996H12C9.45392 21.5996 7.01226 20.5884 5.21191 18.7881C3.41157 16.9877 2.40039 14.5461 2.40039 12C2.40039 11.6686 2.66863 11.4004 3 11.4004C3.33137 11.4004 3.59961 11.6686 3.59961 12C3.59961 14.2278 4.48524 16.3641 6.06055 17.9395C7.63539 19.5143 9.77093 20.3989 11.998 20.3994C14.3556 20.3905 16.6187 19.4725 18.3154 17.8359L19.5527 16.5996H16C15.6686 16.5996 15.4004 16.3314 15.4004 16C15.4004 15.6686 15.6686 15.4004 16 15.4004H21C21.3314 15.4004 21.5996 15.6686 21.5996 16V21Z" fill="#F1F1F1"/><path d="M12.0234 7.12173C12.2016 7.00083 12.4288 6.97592 12.6289 7.05532C13.1623 7.26735 13.8695 7.7516 14.3662 8.53774C14.8765 9.34545 15.1447 10.4426 14.8154 11.8122C14.7314 12.161 14.3802 12.3755 14.0312 12.2917C13.6824 12.2076 13.4669 11.8564 13.5508 11.5075C13.7983 10.4774 13.589 9.74097 13.2676 9.23208C13.1972 9.12068 13.1192 9.01911 13.0391 8.92642V14.0563C13.0391 14.0627 13.04 14.0694 13.04 14.0758C13.04 14.082 13.0391 14.0882 13.0391 14.0944V14.1999C13.0391 14.2557 13.0299 14.3093 13.0166 14.361C12.8779 15.3301 12.0475 16.0757 11.04 16.0758C9.93556 16.0758 9.04018 15.1803 9.04004 14.0758C9.04004 12.9713 9.93547 12.0758 11.04 12.0758C11.286 12.0759 11.5206 12.1225 11.7383 12.2038V7.65981C11.7383 7.44451 11.8454 7.24272 12.0234 7.12173Z" fill="#DDFF57"/></svg>`;
 
-  // 싱크 − 버튼
+  // sync wrap: [Btn Minus] [0.5s] [Btn Plus]
+  const syncWrap = document.createElement('div');
+  syncWrap.style.cssText = 'display: flex; align-items: center; gap: 4px;';
+
+  // Btn Minus
   const btnMinus = document.createElement('button');
   btnMinus.id = 'singalong-btn-minus';
   btnMinus.title = '가사 0.5초 늦추기';
-  btnMinus.style.cssText = btnStyle;
-  btnMinus.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+  btnMinus.style.cssText = btnBase + 'border-radius: 4px; transition: background 0.15s;';
+  btnMinus.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 11.2002C16.4418 11.2002 16.7998 11.5582 16.7998 12C16.7998 12.4418 16.4418 12.7998 16 12.7998H8C7.55817 12.7998 7.2002 12.4418 7.2002 12C7.2002 11.5582 7.55817 11.2002 8 11.2002H16Z" fill="#DDFF57"/><rect x="3" y="3" width="18" height="18" rx="4" fill="#F1F1F1" fill-opacity="0"/><rect x="3.6" y="3.6" width="16.8" height="16.8" rx="3.4" stroke="#F1F1F1" stroke-opacity="0.6" stroke-width="1.2"/></svg>`;
 
-  // 싱크 + 버튼
+  // 0.5s 고정 텍스트
+  const stepLabel = document.createElement('span');
+  stepLabel.textContent = '0.5s';
+  stepLabel.style.cssText = 'color: #f1f1f1; font-size: 15px; font-family: "JetBrains Mono", monospace; letter-spacing: -1px; pointer-events: none; white-space: nowrap; padding: 0 3px;';
+
+  // Btn Plus
   const btnPlus = document.createElement('button');
   btnPlus.id = 'singalong-btn-plus';
   btnPlus.title = '가사 0.5초 앞당기기';
-  btnPlus.style.cssText = btnStyle;
-  btnPlus.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+  btnPlus.style.cssText = btnBase + 'border-radius: 4px; transition: background 0.15s;';
+  btnPlus.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.9951 7.20508C12.4368 7.20514 12.7949 7.56315 12.7949 8.00488V11.2002H16C16.4418 11.2002 16.7998 11.5582 16.7998 12C16.7998 12.4418 16.4418 12.7998 16 12.7998H12.7949V16.0049C12.7949 16.4467 12.4369 16.8046 11.9951 16.8047C11.5533 16.8047 11.1953 16.4467 11.1953 16.0049V12.7998H8C7.55817 12.7998 7.2002 12.4418 7.2002 12C7.2002 11.5582 7.55817 11.2002 8 11.2002H11.1953V8.00488C11.1954 7.56311 11.5533 7.20508 11.9951 7.20508Z" fill="#DDFF57"/><rect x="3" y="3" width="18" height="18" rx="4" fill="#F1F1F1" fill-opacity="0"/><rect x="3.6" y="3.6" width="16.8" height="16.8" rx="3.4" stroke="#F1F1F1" stroke-opacity="0.6" stroke-width="1.2"/></svg>`;
 
-  // 닫기 버튼
+  syncWrap.appendChild(btnMinus);
+  syncWrap.appendChild(stepLabel);
+  syncWrap.appendChild(btnPlus);
+
+  // Btn Close
   const btnClose = document.createElement('button');
   btnClose.id = 'singalong-btn-close';
   btnClose.title = '닫기';
-  btnClose.style.cssText = btnStyle;
-  btnClose.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  btnClose.style.cssText = btnBase + 'width: 18px; height: 18px; margin: 3px; border-radius: 4px; transition: background 0.15s;';
+  btnClose.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.233 5.75489C17.4673 5.52062 17.8463 5.52071 18.0806 5.75489C18.315 5.98921 18.315 6.36823 18.0806 6.60255L12.6832 12L18.0806 17.3975C18.315 17.6318 18.315 18.0108 18.0806 18.2451C17.8463 18.4794 17.4673 18.4794 17.233 18.2451L11.8355 12.8477L6.76717 17.916C6.53285 18.1503 6.15382 18.1503 5.91951 17.916C5.68533 17.6817 5.68524 17.3026 5.91951 17.0684L10.9879 12L5.91951 6.93165C5.6852 6.69733 5.6852 6.31831 5.91951 6.08399C6.15382 5.84968 6.53285 5.84968 6.76717 6.08399L11.8355 11.1524L17.233 5.75489Z" fill="#F1F1F1"/></svg>`;
 
-  // 버튼 hover 효과
-  [btnRefresh, btnMinus, btnPlus, btnClose].forEach(btn => {
-    btn.addEventListener('mouseenter', () => {
-      btn.style.color = '#fff';
-      btn.style.background = 'rgba(255,255,255,0.15)';
-    });
-    btn.addEventListener('mouseleave', () => {
-      btn.style.color = 'rgba(255,255,255,0.6)';
-      btn.style.background = 'none';
-    });
+  // Hover: Minus, Plus — 배경 추가
+  [btnMinus, btnPlus].forEach(btn => {
+    btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(241,241,241,0.1)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = 'none'; });
   });
+
+  // Hover: Close
+  btnClose.addEventListener('mouseenter', () => { btnClose.style.background = 'rgba(241,241,241,0.1)'; });
+  btnClose.addEventListener('mouseleave', () => { btnClose.style.background = 'none'; });
 
   // 버튼 클릭 핸들러
   btnRefresh.addEventListener('click', () => {
@@ -159,8 +223,7 @@ function createBar() {
   });
 
   controls.appendChild(btnRefresh);
-  controls.appendChild(btnMinus);
-  controls.appendChild(btnPlus);
+  controls.appendChild(syncWrap);
   controls.appendChild(btnClose);
 
   bar.appendChild(info);
@@ -352,7 +415,7 @@ async function fetchLyrics(title, titleAlt, artist, artistAlt) {
   if (key === lastFetchKey) return;
   lastFetchKey = key;
   lyrics = [];
-  currentIndex = -1;
+  currentIndex = null;
 
   if (!title) return;
 
@@ -397,8 +460,8 @@ async function fetchLyrics(title, titleAlt, artist, artistAlt) {
         if (res.ok) {
           const data = await res.json();
           if (data.syncedLyrics) {
-            lyrics = parseLrc(data.syncedLyrics);
-            currentIndex = -1;
+            lyrics = markBlankTypes(parseLrc(data.syncedLyrics));
+            currentIndex = null;
             console.log(`[Singalong] 완료 (get): "${t}" / "${a}" — ${lyrics.length}줄`);
             return;
           }
@@ -411,8 +474,8 @@ async function fetchLyrics(title, titleAlt, artist, artistAlt) {
       const results = await res.json();
       const hit = results.find(r => r.syncedLyrics);
       if (hit) {
-        lyrics = parseLrc(hit.syncedLyrics);
-        currentIndex = -1;
+        lyrics = markBlankTypes(parseLrc(hit.syncedLyrics));
+        currentIndex = null;
         console.log(`[Singalong] 완료 (search "${t}"/"${a}"): ${lyrics.length}줄 — ${hit.trackName} / ${hit.artistName}`);
         return;
       }
@@ -439,6 +502,61 @@ function parseLrc(lrc) {
   }
 
   return result.sort((a, b) => a.time - b.time);
+}
+
+// ─── 가사 공백 구간 타입 분류 ────────────────────────────────────────────────
+function markBlankTypes(lines) {
+  const firstIdx = lines.findIndex(l => l.text !== '');
+  const lastIdx = lines.reduce((acc, l, i) => l.text !== '' ? i : acc, -1);
+  return lines.map((line, i) => {
+    if (line.text !== '') return line;
+    const blankType = (firstIdx === -1 || i < firstIdx || i > lastIdx) ? 'B' : 'A';
+    return { ...line, blankType };
+  });
+}
+
+// ─── ASCII 애니메이션 제어 ───────────────────────────────────────────────────
+function startAnim(type) {
+  if (animTimer && animType === type) return;
+  stopAnim();
+  animType = type;
+  animFrameIdx = 0;
+  const frames = type === 'A' ? ANIM_FRAMES_A : ANIM_FRAMES_B;
+  const el = document.getElementById('singalong-current');
+  if (el) el.style.fontWeight = '400';
+
+  if (type === 'A') {
+    setLyricLine(frames[0]);
+    animFrameIdx = 1;
+    animTimer = setInterval(() => {
+      setLyricLine(frames[animFrameIdx % frames.length]);
+      animFrameIdx++;
+    }, 200);
+  } else {
+    if (el) { el.style.transition = 'opacity 0.15s'; el.style.opacity = '1'; }
+    setLyricLine(frames[0]);
+    animFrameIdx = 1;
+    animTimer = setInterval(() => {
+      const el = document.getElementById('singalong-current');
+      if (!el) return;
+      el.style.opacity = '0';
+      setTimeout(() => {
+        el.textContent = frames[animFrameIdx % frames.length];
+        el.style.opacity = '1';
+        animFrameIdx++;
+      }, 150);
+    }, 600);
+  }
+}
+
+function stopAnim() {
+  if (!animTimer) return;
+  clearInterval(animTimer);
+  animTimer = null;
+  animType = null;
+  animFrameIdx = 0;
+  const el = document.getElementById('singalong-current');
+  if (el) { el.style.transition = ''; el.style.opacity = '1'; el.style.fontWeight = '600'; }
 }
 
 // ─── 플랫폼 탭: 싱크 루프 ───────────────────────────────────────────────────
@@ -468,10 +586,19 @@ function platformSyncLoop() {
   }
 
   const current = idx >= 0 ? lyrics[idx].text : '';
+  const line = idx >= 0 ? lyrics[idx] : null;
 
   if (idx !== currentIndex) {
     currentIndex = idx;
-    setLyricLine(current);
+    if (idx < 0) {
+      // 첫 번째 가사 이전 → 전주 B타입
+      startAnim('B');
+    } else if (line && line.text === '' && line.blankType) {
+      startAnim(line.blankType);
+    } else {
+      stopAnim();
+      setLyricLine(current);
+    }
   }
 
   // background에 현재 가사 + 트랙 정보 push
@@ -514,6 +641,7 @@ document.addEventListener('visibilitychange', () => {
 
 function disable() {
   isEnabled = false;
+  stopAnim();
   hideBar();
   if (syncTimer) {
     clearInterval(syncTimer);
@@ -521,7 +649,7 @@ function disable() {
   }
   lastTitle = '';
   lyrics = [];
-  currentIndex = -1;
+  currentIndex = null;
   lastFetchKey = '';
   syncOffset = 0;
 }

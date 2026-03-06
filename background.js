@@ -12,7 +12,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'TOGGLE') {
     chrome.tabs.query({}, (tabs) => {
       for (const tab of tabs) {
-        if (tab.id) {
+        if (tab.id && tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
           chrome.tabs.sendMessage(tab.id, message).catch(() => {});
         }
       }

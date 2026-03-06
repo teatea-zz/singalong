@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+<style>
+  body {
+    background: #111;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+    gap: 48px;
+  }
+  .bar {
+    width: 800px;
+    height: 64px;
+    background: rgba(0,0,0,0.88);
+    border: 1px solid rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Pretendard', sans-serif;
+    font-size: 20px;
+    color: #fff;
+    letter-spacing: 0.05em;
+    border-radius: 4px;
+  }
+  .label {
+    color: rgba(255,255,255,0.35);
+    font-family: 'Pretendard', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+  #text {
+    transition: opacity 0.15s;
+  }
+</style>
+</head>
+<body>
+
+<div class="label">전주 / 후주 — 페이드 버전</div>
+<div class="bar">
+  <span id="text"></span>
+</div>
+
+<script>
+  const face = '( ˘ᵕ˘)';
+
+  const frames = [
+    `♪ ～～  ${face}  ～ ♪`,
+    `♪ ～   ${face}  ～～ ♪`,
+    `♪ ～～～ ${face} ～ ♪`,
+    `♪ ～   ${face}  ～～～ ♪`,
+    `♪ ～～  ${face}  ～ ♪`,
+    `♪ ～   ${face}  ～～ ♪`,
+    `♪ ～～～ ${face} ～ ♪`,
+    `♪ ～   ${face}  ～～～ ♪`,
+  ];
+
+  const text = document.getElementById('text');
+  let i = 0;
+
+  text.textContent = frames[0];
+  i = 1;
+
+  setInterval(() => {
+    text.style.opacity = 0;
+    setTimeout(() => {
+      text.textContent = frames[i % frames.length];
+      text.style.opacity = 1;
+      i++;
+    }, 150);
+  }, 600);
+</script>
+</body>
+</html>

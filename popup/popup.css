@@ -8,19 +8,20 @@ body {
   width: 220px;
   background: #1a1a1a;
   color: #f0f0f0;
-  font-family: sans-serif;
+  font-family: 'Pretendard Variable', Pretendard, sans-serif;
   padding: 20px 16px;
 }
 
 .title {
   font-size: 18px;
   font-weight: 700;
+  color: #ddff57;
   margin-bottom: 4px;
 }
 
 .desc {
   font-size: 11px;
-  color: #888;
+  color: #f1f1f1;
   margin-bottom: 20px;
 }
 
@@ -60,7 +61,7 @@ body {
 }
 
 input:checked + .slider {
-  background: #4caf50;
+  background: #50e256;
 }
 
 input:checked + .slider::after {
@@ -69,5 +70,6 @@ input:checked + .slider::after {
 
 .toggle-label {
   font-size: 14px;
-  color: #ccc;
+  font-weight: 400;
+  color: #b3b3b3;
 }
