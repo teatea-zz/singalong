@@ -1,0 +1,10 @@
+# Claude 에이전트 지침 (로컬 전용)
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
