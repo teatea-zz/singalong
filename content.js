@@ -8,6 +8,7 @@ let lyrics = [];       // [{ time: number (초), text: string }]
 let currentIndex = null;
 let syncTimer = null;
 let syncOffset = 0;    // 싱크 오프셋 (초 단위, ±0.5씩 조절)
+let lyricsNotFound = false;
 
 // ─── ASCII 애니메이션 ────────────────────────────────────────────────────────
 const _fA = '( ˘0˘ )';
@@ -171,7 +172,7 @@ function createBar() {
   // Btn Minus
   const btnMinus = document.createElement('button');
   btnMinus.id = 'singalong-btn-minus';
-  btnMinus.title = '가사 0.5초 늦추기';
+  btnMinus.title = '가사 0.5초 앞당기기';
   btnMinus.style.cssText = btnBase + 'border-radius: 4px; transition: background 0.15s;';
   btnMinus.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 11.2002C16.4418 11.2002 16.7998 11.5582 16.7998 12C16.7998 12.4418 16.4418 12.7998 16 12.7998H8C7.55817 12.7998 7.2002 12.4418 7.2002 12C7.2002 11.5582 7.55817 11.2002 8 11.2002H16Z" fill="#DDFF57"/><rect x="3" y="3" width="18" height="18" rx="4" fill="#F1F1F1" fill-opacity="0"/><rect x="3.6" y="3.6" width="16.8" height="16.8" rx="3.4" stroke="#F1F1F1" stroke-opacity="0.6" stroke-width="1.2"/></svg>`;
 
@@ -183,7 +184,7 @@ function createBar() {
   // Btn Plus
   const btnPlus = document.createElement('button');
   btnPlus.id = 'singalong-btn-plus';
-  btnPlus.title = '가사 0.5초 앞당기기';
+  btnPlus.title = '가사 0.5초 늦추기';
   btnPlus.style.cssText = btnBase + 'border-radius: 4px; transition: background 0.15s;';
   btnPlus.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.9951 7.20508C12.4368 7.20514 12.7949 7.56315 12.7949 8.00488V11.2002H16C16.4418 11.2002 16.7998 11.5582 16.7998 12C16.7998 12.4418 16.4418 12.7998 16 12.7998H12.7949V16.0049C12.7949 16.4467 12.4369 16.8046 11.9951 16.8047C11.5533 16.8047 11.1953 16.4467 11.1953 16.0049V12.7998H8C7.55817 12.7998 7.2002 12.4418 7.2002 12C7.2002 11.5582 7.55817 11.2002 8 11.2002H11.1953V8.00488C11.1954 7.56311 11.5533 7.20508 11.9951 7.20508Z" fill="#DDFF57"/><rect x="3" y="3" width="18" height="18" rx="4" fill="#F1F1F1" fill-opacity="0"/><rect x="3.6" y="3.6" width="16.8" height="16.8" rx="3.4" stroke="#F1F1F1" stroke-opacity="0.6" stroke-width="1.2"/></svg>`;
 
@@ -215,8 +216,8 @@ function createBar() {
     const info = getNowPlaying();
     if (info) fetchLyrics(info.title, info.titleAlt, info.artist, info.artistAlt);
   });
-  btnMinus.addEventListener('click', () => { syncOffset -= 0.5; });
-  btnPlus.addEventListener('click', () => { syncOffset += 0.5; });
+  btnMinus.addEventListener('click', () => { syncOffset += 0.5; });
+  btnPlus.addEventListener('click', () => { syncOffset -= 0.5; });
   btnClose.addEventListener('click', () => {
     disable();
     chrome.storage.local.set({ enabled: false });
@@ -416,31 +417,17 @@ async function fetchLyrics(title, titleAlt, artist, artistAlt) {
   lastFetchKey = key;
   lyrics = [];
   currentIndex = null;
+  lyricsNotFound = false;
 
   if (!title) return;
 
   console.log(`[Singalong] 가사 검색: title="${title}"${titleAlt ? `/"${titleAlt}"` : ''} artist="${artist}"${artistAlt ? `/"${artistAlt}"` : ''}`);
 
-  const isKorean = (s) => s && /\p{Script=Hangul}/u.test(s);
-  const artistIsKorean = isKorean(artist);
-
   const combos = [];
-  if (artistIsKorean) {
-    if (title && artist) combos.push([title, artist]);
-    if (titleAlt && artist) combos.push([titleAlt, artist]);
-    if (title && artistAlt) combos.push([title, artistAlt]);
-    if (titleAlt && artistAlt) combos.push([titleAlt, artistAlt]);
-  } else {
-    if (!artistAlt) {
-      if (titleAlt && artist) combos.push([titleAlt, artist]);
-      if (title && artist) combos.push([title, artist]);
-    } else {
-      if (titleAlt && artistAlt) combos.push([titleAlt, artistAlt]);
-      if (title && artistAlt) combos.push([title, artistAlt]);
-      if (titleAlt && artist) combos.push([titleAlt, artist]);
-      if (title && artist) combos.push([title, artist]);
-    }
-  }
+  if (title && artist) combos.push([title, artist]);
+  if (titleAlt && artist) combos.push([titleAlt, artist]);
+  if (title && artistAlt) combos.push([title, artistAlt]);
+  if (titleAlt && artistAlt) combos.push([titleAlt, artistAlt]);
 
   const seen = new Set();
   const uniqueCombos = combos.filter(([t, a]) => {
@@ -481,6 +468,7 @@ async function fetchLyrics(title, titleAlt, artist, artistAlt) {
       }
     }
 
+    lyricsNotFound = true;
     console.log('[Singalong] 가사 없음');
   } catch (e) {
     console.warn('[Singalong] 가사 로딩 실패:', e);
@@ -532,6 +520,42 @@ function startAnim(type) {
       setLyricLine(frames[animFrameIdx % frames.length]);
       animFrameIdx++;
     }, 200);
+  } else if (type === 'C') {
+    // 2-phase: 메시지 정지 (8틱) → B 프레임 페이드 (8틱) → 반복
+    const MSG = '가사를 찾을 수 없습니다';
+    const bLen = ANIM_FRAMES_B.length; // 8
+    if (el) { el.style.transition = 'opacity 0.4s'; el.style.opacity = '0'; }
+    setLyricLine(MSG);
+    setTimeout(() => {
+      const el = document.getElementById('singalong-current');
+      if (el) el.style.opacity = '1';
+    }, 50);
+    animFrameIdx = 1;
+    animTimer = setInterval(() => {
+      const el = document.getElementById('singalong-current');
+      if (!el) return;
+      const frame = animFrameIdx % (bLen * 2);
+      animFrameIdx++;
+      if (frame === 0) {
+        // 애니 phase 종료 → 메시지 phase 시작 (페이드 인)
+        el.style.transition = 'opacity 0.4s';
+        el.style.opacity = '0';
+        setTimeout(() => {
+          el.textContent = MSG;
+          el.style.opacity = '1';
+        }, 150);
+      } else if (frame >= bLen) {
+        // 애니 phase: B 프레임 페이드
+        el.style.transition = 'opacity 0.15s';
+        el.style.opacity = '0';
+        const bIdx = frame - bLen;
+        setTimeout(() => {
+          el.textContent = ANIM_FRAMES_B[bIdx];
+          el.style.opacity = '1';
+        }, 150);
+      }
+      // frame 1 ~ bLen-1: 메시지 phase 대기 (no-op)
+    }, 600);
   } else {
     if (el) { el.style.transition = 'opacity 0.15s'; el.style.opacity = '1'; }
     setLyricLine(frames[0]);
@@ -576,7 +600,11 @@ function platformSyncLoop() {
     fetchLyrics(info.title, info.titleAlt, info.artist, info.artistAlt);
   }
 
-  if (!lyrics.length || info.paused) return;
+  if (info.paused) return;
+  if (!lyrics.length) {
+    if (lyricsNotFound) startAnim('C');
+    return;
+  }
 
   const t = info.currentTime + syncOffset;
   let idx = -1;
@@ -652,6 +680,7 @@ function disable() {
   currentIndex = null;
   lastFetchKey = '';
   syncOffset = 0;
+  lyricsNotFound = false;
 }
 
 // ─── 메시지 수신 (팝업 → background → content) ─────────────────────────────
